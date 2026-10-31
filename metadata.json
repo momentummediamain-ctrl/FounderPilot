@@ -1,0 +1,6 @@
+{
+  "name": "FounderPilot OS",
+  "description": "An AI-powered co-founder business operating system to help solo founders create, launch, and manage online businesses with AI employees.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
