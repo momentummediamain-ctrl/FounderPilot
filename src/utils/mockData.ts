@@ -1,4 +1,12 @@
-import { Task, Ticket, RevenueStats, WebsiteData, MarketingCampaign } from '../types';
+import {
+  Task,
+  Ticket,
+  RevenueStats,
+  WebsiteData,
+  MarketingCampaign,
+  MarketResearchReport,
+  AgentFeedback
+} from '../types';
 
 export const getInitialTasks = (businessName: string): Task[] => [
   {
@@ -114,7 +122,7 @@ export const getInitialMarketingCampaign = (): MarketingCampaign => ({
     }
   ],
   instaCaptions: [
-    'Stop trading hours for dollars. Build a scalable system that drives checkouts while you sleep. Bio link has the cheat code. 💸 #solopreneur #indiehackers',
+    'Stop trading hours for dollars. Build a scalable system that drives checkouts while you sleep. Bio link has the cheat code. #solopreneur #indiehackers',
     '8 elite AI staff members working on your business 24/7. That is not science fiction—it is FounderPilot. Try it today.'
   ],
   facebookPosts: [
@@ -141,3 +149,153 @@ export const getInitialMarketingCampaign = (): MarketingCampaign => ({
     { id: 'm3', day: 'Wednesday', platform: 'Email', content: 'Broadcast Day 1 Welcome sequence email to active users', status: 'draft' }
   ]
 });
+
+export const getInitialMarketResearch = (idea?: string, businessName?: string): MarketResearchReport => {
+  const resolvedIdea = idea || 'Autonomous AI workflow & billing copilot for solo SaaS founders and boutique digital agencies';
+  const resolvedName = businessName || 'FounderPilot OS';
+
+  return {
+    idea: resolvedIdea,
+    businessName: resolvedName,
+    executiveSummary: `CEO Intelligence Assessment for "${resolvedIdea}": The solo-founder and micro-agency automation sector is experiencing rapid structural expansion driven by lean software operators replacing fragmented point tools ($400+/mo stack) with unified multi-agent operating systems. While horizontal automation platforms dominate enterprise workflows, a high-margin wedge exists for an opinionated, verticalized AI co-founder platform that unifies GTM copywriting, Stripe monetization, and customer support triage out of the box.`,
+    marketSize: {
+      tam: '$48.4B Global SMB & Solo-Creator Workflow Automation Market',
+      sam: '$6.8B Solo SaaS Founders, Indie Hackers & Micro-Agencies (1–5 seats)',
+      som: '$142M Year-1–3 Capturable Beachhead (38,000 Pro/Agency subscribers at $79–$299/mo)',
+      cagr: '29.4% YoY (2026–2030)',
+      targetSegment: 'Technical solo founders, bootstrapped B2B SaaS operators, and productized service agencies generating $2k–$50k MRR.',
+      methodology: 'Bottom-up sizing combining global Stripe Atlas / indie SaaS registrations (~1.4M active micro-ventures) with average software tool spend ($310/mo).'
+    },
+    competitors: [
+      {
+        name: 'Zapier / Make Enterprise',
+        category: 'Horizontal Workflow Glue',
+        marketShare: '34% Segment Share',
+        pricing: '$49 – $399/mo (Usage-gated)',
+        strengths: [
+          '6,000+ third-party webhook and app connectors',
+          'High brand trust and entrenched developer ecosystem',
+          'Reliable multi-step trigger execution'
+        ],
+        weaknesses: [
+          'Zero native strategic intelligence or autonomous copy generation',
+          'Steep configuration fatigue; requires manual node-by-node wiring',
+          'Punitive task-based pricing spikes during viral launch campaigns'
+        ]
+      },
+      {
+        name: 'Jasper / Copy.ai Studio',
+        category: 'AI Marketing & Content Point Tool',
+        marketShare: '21% Segment Share',
+        pricing: '$49 – $125/seat/mo',
+        strengths: [
+          'Polished multi-channel marketing templates and brand voice controls',
+          'Strong enterprise marketing team collaboration workflows'
+        ],
+        weaknesses: [
+          'Disconnected from live Stripe revenue, product packaging, and support tickets',
+          'Produces generic copy without CEO-level business blueprint context',
+          'Too expensive and bloated for a 1-person bootstrapped operator'
+        ]
+      },
+      {
+        name: 'Notion AI + Custom GPT Wrappers',
+        category: 'DIY Knowledge & Prompt Workspace',
+        marketShare: '28% Segment Share',
+        pricing: '$20 – $60/mo combined',
+        strengths: [
+          'Low entry cost and flexible blank-canvas documentation',
+          'Familiar interface for early ideation and note-taking'
+        ],
+        weaknesses: [
+          'Blank-page paralysis; founder must engineer every prompt manually',
+          'No structured task approval queue, landing page deployer, or feedback tuning loop',
+          'No closed-loop reinforcement learning from founder ratings'
+        ]
+      }
+    ],
+    marketGaps: [
+      {
+        title: 'Closed-Loop Feedback Fine-Tuning Per Venture',
+        opportunityScore: '9.4 / 10 Impact',
+        description: 'Existing AI tools treat every prompt as stateless. Solo founders waste hours repeating brand constraints, tone rules, and pricing positioning across sessions.',
+        strategicWedge: 'Persist founder ratings (1–5 stars) and natural-language critiques to automatically synthesize durable fine-tuning rules injected into every subsequent agent run.'
+      },
+      {
+        title: 'Unified Blueprint-to-Checkout Execution Pipeline',
+        opportunityScore: '9.1 / 10 Impact',
+        description: 'Founders currently stitch together 6+ tools (ChatGPT for ideation, Webflow for landing pages, Stripe for billing, Intercom for support, Buffer for social).',
+        strategicWedge: 'Single-click propagation from CEO Business Blueprint directly into pre-wired Website Builder copy, Stripe pricing tiers, and 7-day viral social scripts.'
+      },
+      {
+        title: 'Human-in-the-Loop Executive Approval Queue',
+        opportunityScore: '8.7 / 10 Impact',
+        description: 'Founders distrust fully autonomous black-box agents that publish unvetted social posts or reply to customers without oversight.',
+        strategicWedge: 'Stage all AI employee deliverables inside a central Task Approval Queue where the founder approves and executes actions with one click.'
+      }
+    ],
+    strategicRecommendations: [
+      {
+        phase: 'Phase 1 · Days 1–30 (Beachhead Wedge)',
+        action: 'Position around "Launch in 24 Hours with 8 AI Employees" targeting solo technical builders who hate marketing and support overhead.',
+        expectedImpact: '3.8%+ landing page conversion rate and sub-$45 CAC via organic TikTok/LinkedIn build-in-public demos.'
+      },
+      {
+        phase: 'Phase 2 · Days 31–60 (Retention & Expansion)',
+        action: 'Lock in switching costs via the Agent Feedback & Fine-Tuning Engine—the more a founder rates outputs, the smarter their custom staff becomes.',
+        expectedImpact: 'Reduces 90-day churn by ~38% and drives 42% upgrade conversion from Starter ($29) to Growth Pro ($79).'
+      },
+      {
+        phase: 'Phase 3 · Days 61–90 (High-Ticket Monetization)',
+        action: 'Introduce multi-venture Agency Workspaces ($249/mo) allowing boutique studios to clone tuned AI employee rosters across client brands.',
+        expectedImpact: 'Expands blended ARPU from $54/mo to $118/mo.'
+      }
+    ],
+    generatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  };
+};
+
+export const getInitialFeedbackList = (): AgentFeedback[] => [
+  {
+    id: 'fb_1',
+    agentId: 'marketing',
+    agentName: 'Rohan Joshi (CMO)',
+    outputType: 'marketing_campaign',
+    outputSummary: 'TikTok & Email Launch Campaign v1',
+    rating: 4,
+    sentiment: 'constructive',
+    comment: 'Lead every TikTok hook with a concrete time-or-dollar metric (e.g., "$4,200 saved" or "24 hours") and replace generic hype words with proof-driven B2B language.',
+    extractedRule: 'Always anchor hooks and email subjects with specific quantitative metrics ($ saved, hours reduced, % conversion lift) and eliminate generic buzzwords.',
+    active: true,
+    appliedCount: 3,
+    createdAt: 'Today, 09:15 AM'
+  },
+  {
+    id: 'fb_2',
+    agentId: 'ceo',
+    agentName: 'Sarah Chen (CEO)',
+    outputType: 'market_research',
+    outputSummary: 'Market Research & Competitor Matrix',
+    rating: 5,
+    sentiment: 'positive',
+    comment: 'Excellent bottom-up SAM/SOM calculation. Keep emphasizing high-margin bootstrapped wedges rather than venture-scale burn strategies.',
+    extractedRule: 'Prioritize capital-efficient, bootstrapped B2B wedges with immediate 30-day payback periods over high-burn enterprise sales motions.',
+    active: true,
+    appliedCount: 4,
+    createdAt: 'Today, 10:02 AM'
+  },
+  {
+    id: 'fb_3',
+    agentId: 'website',
+    agentName: 'Evelyn Gray (Web Architect)',
+    outputType: 'website_copy',
+    outputSummary: 'Hero Section & Pricing Tier Copy',
+    rating: 4,
+    sentiment: 'constructive',
+    comment: 'Make the Hero Headline speak directly to the cost of hiring human agencies vs. deploying AI staff in under 10 minutes.',
+    extractedRule: 'Frame landing page headlines around speed-to-value (under 10 minutes) and direct cost comparison against $5,000/mo human retainers.',
+    active: true,
+    appliedCount: 2,
+    createdAt: 'Today, 10:40 AM'
+  }
+];

@@ -29,13 +29,81 @@ export interface BusinessProfile {
   tools: { name: string; purpose: string; cost: string }[];
 }
 
+export interface CompetitorAnalysis {
+  name: string;
+  category: string;
+  marketShare: string;
+  pricing: string;
+  strengths: string[];
+  weaknesses: string[];
+}
+
+export interface MarketGap {
+  title: string;
+  opportunityScore: string;
+  description: string;
+  strategicWedge: string;
+}
+
+export interface MarketResearchReport {
+  idea: string;
+  businessName: string;
+  executiveSummary: string;
+  marketSize: {
+    tam: string;
+    sam: string;
+    som: string;
+    cagr: string;
+    targetSegment: string;
+    methodology: string;
+  };
+  competitors: CompetitorAnalysis[];
+  marketGaps: MarketGap[];
+  strategicRecommendations: {
+    phase: string;
+    action: string;
+    expectedImpact: string;
+  }[];
+  generatedAt: string;
+}
+
+export type FeedbackOutputType =
+  | 'market_research'
+  | 'blueprint'
+  | 'marketing_campaign'
+  | 'website_copy'
+  | 'support_reply'
+  | 'ceo_chat';
+
+export interface AgentFeedback {
+  id: string;
+  agentId: AgentId;
+  agentName: string;
+  outputType: FeedbackOutputType;
+  outputSummary: string;
+  rating: number;
+  sentiment: 'positive' | 'neutral' | 'constructive';
+  comment: string;
+  extractedRule: string;
+  active: boolean;
+  appliedCount: number;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   agentId: AgentId;
   title: string;
   description: string;
   status: 'pending_approval' | 'approved' | 'completed';
-  actionType: 'stripe_setup' | 'publish_post' | 'deploy_website' | 'send_email' | 'add_product' | 'support_reply' | 'general';
+  actionType:
+    | 'stripe_setup'
+    | 'publish_post'
+    | 'deploy_website'
+    | 'send_email'
+    | 'add_product'
+    | 'support_reply'
+    | 'general';
   externalPayload?: any;
   result?: string;
   createdAt: string;
