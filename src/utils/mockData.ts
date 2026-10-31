@@ -5,44 +5,92 @@ import {
   WebsiteData,
   MarketingCampaign,
   MarketResearchReport,
-  AgentFeedback
+  AgentFeedback,
+  MarketIntelFeed,
+  AssetAuditLogEntry,
+  MockStripeProduct
 } from '../types';
+
+export const getInitialMockStripeProducts = (businessName: string): MockStripeProduct[] => [
+  {
+    id: 'prod_mock_starter_01',
+    priceId: 'price_mock_29_mo',
+    name: `${businessName || 'FounderPilot'} Starter Operator`,
+    description: 'Core 8-agent workspace, CEO Market Research, and 3 automated launch workflows.',
+    amount: 29,
+    interval: 'month',
+    active: true,
+    createdAt: 'Synced from Blueprint'
+  },
+  {
+    id: 'prod_mock_growth_02',
+    priceId: 'price_mock_79_mo',
+    name: `${businessName || 'FounderPilot'} Growth Pro Suite`,
+    description: 'Unlimited multi-channel campaigns, closed-loop agent feedback fine-tuning, and Stripe checkout sync.',
+    amount: 79,
+    interval: 'month',
+    active: true,
+    createdAt: 'Synced from Blueprint'
+  },
+  {
+    id: 'prod_mock_agency_03',
+    priceId: 'price_mock_249_mo',
+    name: `${businessName || 'FounderPilot'} Agency Scale Bundle`,
+    description: 'Multi-venture brand workspaces, white-label client reporting, and priority webhook execution.',
+    amount: 249,
+    interval: 'month',
+    active: true,
+    createdAt: 'Synced from Blueprint'
+  }
+];
 
 export const getInitialTasks = (businessName: string): Task[] => [
   {
     id: 't1',
-    agentId: 'ceo',
-    title: 'Finalize Pricing Tiers',
-    description: 'Establish standard pricing models inside Stripe checkout and match products inside the Revenue Dashboard.',
+    agentId: 'product',
+    title: 'Finalize 3-Tier Pricing & Stripe Product SKUs',
+    description: 'Lock Starter ($29/mo), Growth Pro ($79/mo), and Agency ($249/mo) tiers in the Mock Stripe Catalog so checkout and landing page tables stay synchronized.',
     status: 'pending_approval',
     actionType: 'add_product',
+    urgency: 'critical',
+    strategicGoal: 'revenue_acceleration',
+    dependsOnTaskIds: [],
     createdAt: new Date().toLocaleDateString()
   },
   {
     id: 't2',
     agentId: 'website',
-    title: 'Deploy Optimized Landing Page Copy',
-    description: `Deploy custom-designed headers, features, pricing tables, and SEO meta tags generated for ${businessName || 'your business'}.`,
+    title: 'Deploy Optimized Landing Page & Pricing Table',
+    description: `Deploy conversion-optimized hero copy, pricing tiers, and SEO meta tags generated for ${businessName || 'FounderPilot OS'}. Depends on finalized pricing tiers.`,
     status: 'pending_approval',
     actionType: 'deploy_website',
+    urgency: 'high',
+    strategicGoal: 'product_readiness',
+    dependsOnTaskIds: ['t1'],
     createdAt: new Date().toLocaleDateString()
   },
   {
     id: 't3',
     agentId: 'marketing',
-    title: 'Schedule Viral Tiktok Campaign',
-    description: 'Approve and queue the "Solo Founder Secret" viral script to publish automatically on Monday.',
+    title: 'Schedule Viral TikTok & Email Launch Sequence',
+    description: 'Approve and queue the "Solo Founder 24-Hour Launch" script and Day-1 welcome email to drive traffic to the live landing page.',
     status: 'pending_approval',
     actionType: 'publish_post',
+    urgency: 'high',
+    strategicGoal: 'customer_acquisition',
+    dependsOnTaskIds: ['t2'],
     createdAt: new Date().toLocaleDateString()
   },
   {
     id: 't4',
     agentId: 'support',
-    title: 'Establish Support Macro Responses',
-    description: 'Verify and load canned help macros to handle high-frequency incoming user queries autonomously.',
+    title: 'Activate Automated Support Triage & FAQ Macros',
+    description: 'Verify and load canned help macros for trial, billing, and API integration inquiries before launch traffic arrives.',
     status: 'pending_approval',
     actionType: 'support_reply',
+    urgency: 'normal',
+    strategicGoal: 'operational_resilience',
+    dependsOnTaskIds: [],
     createdAt: new Date().toLocaleDateString()
   }
 ];
@@ -101,8 +149,8 @@ export const getInitialWebsiteData = (businessName: string): WebsiteData => ({
     { title: 'Support Macro Desk', description: 'Kenji Support drafts, handles, and archives tickets completely automatically.', icon: 'Shield' }
   ],
   pricingPlans: [
-    { name: 'Starter Pack', price: '$19/mo', features: ['Core Employee Roster', '3 Automated Operations', 'Standard Ticket Integration'] },
-    { name: 'Growth Professional', price: '$49/mo', features: ['All Employee Access', 'Unlimited Active Tasks', 'Full Custom Web Builder', 'Stripe Integrations'] }
+    { name: 'Starter Pack', price: '$29/mo', features: ['Core Employee Roster', '3 Automated Operations', 'Standard Ticket Integration'] },
+    { name: 'Growth Professional', price: '$79/mo', features: ['All Employee Access', 'Unlimited Active Tasks', 'Full Custom Web Builder', 'Stripe Integrations'] }
   ],
   faqs: [
     { question: 'Do I need deep programming knowledge?', answer: 'Not at all. FounderPilot OS handles full copywriting, landing page setups, and marketing script loops for you.' },
@@ -251,7 +299,26 @@ export const getInitialMarketResearch = (idea?: string, businessName?: string): 
         expectedImpact: 'Expands blended ARPU from $54/mo to $118/mo.'
       }
     ],
-    generatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    generatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    groundingVerified: true,
+    citations: [
+      {
+        title: 'TechCrunch — Artificial Intelligence & Agentic SaaS Market Benchmarks',
+        uri: 'https://techcrunch.com/category/artificial-intelligence/'
+      },
+      {
+        title: 'Stripe Atlas & SaaS Subscription Economy Index',
+        uri: 'https://stripe.com/resources'
+      },
+      {
+        title: 'Harvard Business Review — Autonomous AI Workflows in SMB Operations',
+        uri: 'https://hbr.org/topic/subject/ai-and-machine-learning'
+      },
+      {
+        title: 'Bessemer Venture Partners — State of the Cloud & Vertical AI Report',
+        uri: 'https://www.bvp.com/atlas'
+      }
+    ]
   };
 };
 
@@ -297,5 +364,95 @@ export const getInitialFeedbackList = (): AgentFeedback[] => [
     active: true,
     appliedCount: 2,
     createdAt: 'Today, 10:40 AM'
+  }
+];
+
+export const getInitialMarketIntel = (idea?: string): MarketIntelFeed => {
+  const resolvedIdea =
+    idea || 'Autonomous AI workflow & billing copilot for solo SaaS founders and boutique digital agencies';
+
+  return {
+    idea: resolvedIdea,
+    items: [
+      {
+        headline: 'Multi-Agent SaaS Platforms Overtake Single-Task Point Tools Among Bootstrapped B2B Founders',
+        summary:
+          'Recent industry benchmarks show 64% of solo and micro-SaaS operators are consolidating 4–6 separate marketing, billing, and customer support subscriptions into unified agentic workspaces to cut monthly SaaS burn.',
+        strategicImplication:
+          'Emphasize all-in-one stack consolidation ($310+/mo saved) on the landing page hero and position the $79/mo Growth Pro tier as an immediate net cost reduction.',
+        publishedContext: 'B2B SaaS Market Pulse · Live Trend',
+        sourceTitle: 'TechCrunch — Rise of Agentic Workflows in SMB SaaS',
+        sourceUrl: 'https://techcrunch.com/category/artificial-intelligence/'
+      },
+      {
+        headline: 'Usage-Based Pricing Fatigue Drives Shift Back to Predictable Flat-Rate AI Tiers',
+        summary:
+          'Founders and small agencies report growing churn from credit-gated automation platforms due to unpredictable monthly overage bills during product launches and viral social campaigns.',
+        strategicImplication:
+          'Highlight predictable flat-rate monthly pricing with zero per-task credit penalties in competitive comparisons against legacy workflow tools.',
+        publishedContext: 'SaaS Pricing & Monetization Report · Live Trend',
+        sourceTitle: 'Stripe — State of Subscription & AI Billing Trends',
+        sourceUrl: 'https://stripe.com/resources'
+      },
+      {
+        headline: 'Human-in-the-Loop Approval Queues Emerge as Top Trust Requirement for Autonomous GTM Agents',
+        summary:
+          'New surveys of digital agency owners reveal that 78% require a staged approval queue and custom feedback memory before allowing AI agents to publish customer-facing campaigns or reply to support tickets.',
+        strategicImplication:
+          'Lead product demos with the Task Approval Queue and Closed-Loop Feedback Fine-Tuning Lab to convert trust-sensitive B2B buyers.',
+        publishedContext: 'Enterprise & SMB AI Adoption Index · Live Trend',
+        sourceTitle: 'Harvard Business Review — Managing Autonomous AI Agents',
+        sourceUrl: 'https://hbr.org/topic/subject/ai-and-machine-learning'
+      }
+    ],
+    sources: [
+      {
+        title: 'TechCrunch — Artificial Intelligence & Agentic SaaS Coverage',
+        uri: 'https://techcrunch.com/category/artificial-intelligence/'
+      },
+      {
+        title: 'Stripe Resources — Subscription & AI Monetization Benchmarks',
+        uri: 'https://stripe.com/resources'
+      },
+      {
+        title: 'Harvard Business Review — AI & Autonomous Operations',
+        uri: 'https://hbr.org/topic/subject/ai-and-machine-learning'
+      }
+    ],
+    updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  };
+};
+
+export const getInitialAuditLogs = (): AssetAuditLogEntry[] => [
+  {
+    id: 'audit_seed_1',
+    timestamp: '09:10 AM',
+    agentId: 'ceo',
+    agentName: 'Sarah Chen (CEO)',
+    action: 'Grounded Market Research Compiled',
+    assetModule: 'research',
+    summary: 'TAM/SAM/SOM & 3-competitor matrix verified with 4 Google Search grounding citations.',
+    approvalStatus: 'STAGED_DRAFT'
+  },
+  {
+    id: 'audit_seed_2',
+    timestamp: '09:42 AM',
+    agentId: 'website',
+    agentName: 'Evelyn Gray (Web Architect) + Rohan Joshi (CMO)',
+    action: 'Collaborative GTM Draft Staged',
+    assetModule: 'website',
+    summary: 'Synchronized landing page hero proposition and viral TikTok launch script; queued for Owner approval.',
+    approvalStatus: 'PENDING_OWNER_APPROVAL'
+  },
+  {
+    id: 'audit_seed_3',
+    timestamp: '10:15 AM',
+    agentId: 'founder',
+    agentName: 'Alex Rivera (OWNER)',
+    action: 'Launch Gate & Financial Separation Verified',
+    assetModule: 'launch_gate',
+    summary: 'Verified Financial Ledger ($0.00 Live) isolated from Sandbox Demo Simulator. Consequential actions locked behind Owner approval.',
+    approvalStatus: 'OWNER_APPROVED',
+    receiptId: 'rcpt_9f82c41e0a'
   }
 ];

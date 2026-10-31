@@ -16,6 +16,16 @@ export interface Agent {
   status: 'idle' | 'thinking' | 'working';
   bio: string;
   prompt: string;
+  customSkillFocus?: string;
+  coreObjective?: string;
+  nonOverlappingScope?: string;
+  deliverables?: string[];
+  agentHandoffs?: {
+    receivesFrom: string;
+    passesTo: string;
+    handoffArtifact: string;
+  };
+  founderInteractionProtocol?: string;
 }
 
 export interface BusinessProfile {
@@ -65,6 +75,29 @@ export interface MarketResearchReport {
     expectedImpact: string;
   }[];
   generatedAt: string;
+  citations?: MarketIntelSource[];
+  groundingVerified?: boolean;
+}
+
+export interface MarketIntelItem {
+  headline: string;
+  summary: string;
+  strategicImplication: string;
+  publishedContext: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
+}
+
+export interface MarketIntelSource {
+  title: string;
+  uri: string;
+}
+
+export interface MarketIntelFeed {
+  idea: string;
+  items: MarketIntelItem[];
+  sources: MarketIntelSource[];
+  updatedAt: string;
 }
 
 export type FeedbackOutputType =
@@ -90,6 +123,28 @@ export interface AgentFeedback {
   createdAt: string;
 }
 
+export interface ActionReceipt {
+  receiptId: string;
+  taskId: string;
+  taskTitle: string;
+  agentId: AgentId;
+  actionType: string;
+  approvedBy: string;
+  approvedAt: string;
+  executedAt: string;
+  tenantId: string;
+  sha256Hash: string;
+  verificationStatus: 'VERIFIED_RECEIPT';
+}
+
+export type TaskUrgency = 'critical' | 'high' | 'normal' | 'low';
+
+export type StrategicGoalType =
+  | 'revenue_acceleration'
+  | 'customer_acquisition'
+  | 'product_readiness'
+  | 'operational_resilience';
+
 export interface Task {
   id: string;
   agentId: AgentId;
@@ -104,9 +159,15 @@ export interface Task {
     | 'add_product'
     | 'support_reply'
     | 'general';
+  urgency?: TaskUrgency;
+  strategicGoal?: StrategicGoalType;
+  dependsOnTaskIds?: string[];
+  customSkillApplied?: string;
   externalPayload?: any;
   result?: string;
   createdAt: string;
+  approvedAt?: string;
+  receipt?: ActionReceipt;
 }
 
 export interface FeatureItem {
@@ -205,11 +266,125 @@ export interface RevenueStats {
   conversionRate: number;
   totalCustomers: number;
   salesHistory: SalesHistoryEntry[];
+  verifiedLiveRevenue?: number;
+  verifiedLiveOrders?: number;
+  isDemoData?: boolean;
+}
+
+export interface MockStripeProduct {
+  id: string;
+  priceId: string;
+  name: string;
+  description: string;
+  amount: number;
+  interval: 'month' | 'year' | 'one_time';
+  active: boolean;
+  createdAt: string;
+}
+
+export interface StripeTestTransaction {
+  id: string;
+  chargeId: string;
+  subscriptionId: string;
+  productId?: string;
+  priceId?: string;
+  customerEmail: string;
+  planName: string;
+  amount: number;
+  status: 'purchased' | 'refunded' | 'canceled';
+  entitlementStatus: 'active_trial_or_test' | 'revoked_refund' | 'canceled_period_end';
+  webhookVerified: boolean;
+  refundId?: string;
+  canceledAt?: string;
+  timestamp: string;
+  mode: 'STRIPE_TEST_MODE';
+}
+
+export interface TenantAccount {
+  tenantId: string;
+  ownerName: string;
+  ownerEmail: string;
+  role: 'OWNER' | 'OPERATOR' | 'VIEWER';
+  businessName: string;
+  planEntitlement: 'sandbox_free' | 'starter_test' | 'growth_pro_test';
+  isolatedNamespace: string;
+}
+
+export interface PilotCustomerRecord {
+  id: string;
+  founderName: string;
+  company: string;
+  cohortWeek: string;
+  onboardingCompleted: boolean;
+  coreWorkflowCompleted: boolean;
+  aiOperatingCostUsd: number;
+  supportTicketsCount: number;
+  willingnessToPayTier: '$29/mo Starter' | '$79/mo Growth Pro' | '$249/mo Agency';
+  retryRecoveryPassed: boolean;
+  feedbackQuote: string;
+}
+
+export interface UsageMeterSummary {
+  totalApiCalls: number;
+  dailyQuotaLimit: number;
+  estimatedAiCostUsd: number;
+  monthlyCostCapUsd: number;
+  schemaValidationsPassed: number;
+  schemaFailuresCaught: number;
+  rateLimitStatus: 'HEALTHY' | 'THROTTLED';
+}
+
+export interface LaunchGateItem {
+  id: string;
+  stage:
+    | 'Stage 1 · Truth & Safety'
+    | 'Stage 2 · Secure Foundation'
+    | 'Stage 3 · Operational Workflow'
+    | 'Stage 4 · Commercial MVP'
+    | 'Stage 5 · Closed Pilot'
+    | 'Stage 6 · Controlled Public Launch';
+  label: string;
+  category: 'engineering' | 'security' | 'financial' | 'governance';
+  checked: boolean;
+  evidenceSummary: string;
+  lastVerifiedAt: string;
+}
+
+export interface AssetAuditLogEntry {
+  id: string;
+  timestamp: string;
+  agentId: AgentId | 'founder' | 'system';
+  agentName: string;
+  action: string;
+  assetModule: string;
+  summary: string;
+  approvalStatus:
+    | 'STAGED_DRAFT'
+    | 'PENDING_OWNER_APPROVAL'
+    | 'OWNER_APPROVED'
+    | 'BLOCKED_BY_GATE';
+  receiptId?: string;
+}
+
+export interface IdeaValidationMetadata {
+  step: 'probing_questions' | 'synthesis_and_pivot';
+  originalIdea: string;
+  questions?: string[];
+  refinedOriginalIdea?: string;
+  alternativeConcept?: string;
 }
 
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'ceo' | 'system' | AgentId;
+  agentId?: AgentId;
+  agentName?: string;
+  collaborators?: AgentId[];
   text: string;
   timestamp: string;
+  proposedActionTitle?: string;
+  proposedActionType?: Task['actionType'];
+  targetAsset?: 'blueprint' | 'website' | 'marketing' | 'tasks';
+  queuedTaskId?: string;
+  validationMetadata?: IdeaValidationMetadata;
 }

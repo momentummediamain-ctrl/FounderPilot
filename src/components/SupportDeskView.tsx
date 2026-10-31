@@ -103,10 +103,10 @@ export default function SupportDeskView({
                         setSelectedTicketId(t.id);
                         setDraftReply(t.draftReply || '');
                       }}
-                      className={`w-full p-4 rounded-none border text-left transition duration-150 flex flex-col space-y-1.5 cursor-pointer ${
+                      className={`w-full p-4 border text-left transition duration-150 flex flex-col space-y-1.5 cursor-pointer ${
                         isSelected
-                          ? 'bg-zinc-900 border-zinc-800 text-zinc-100 border-l-2 border-l-orange-500 shadow-sm'
-                          : 'bg-zinc-950 hover:bg-zinc-900/40 border-zinc-850 text-zinc-400'
+                          ? 'bg-zinc-900 border-zinc-700 text-zinc-100'
+                          : 'bg-zinc-950 hover:bg-zinc-900/40 border-zinc-800 text-zinc-400'
                       }`}
                     >
                       <div className="flex justify-between items-center w-full">
@@ -174,7 +174,7 @@ export default function SupportDeskView({
                 {/* Customer Message Body */}
                 <div className="space-y-1.5 text-xs">
                   <span className="text-[10px] font-bold uppercase text-zinc-500 tracking-wider">Inquiry message</span>
-                  <div className="p-4 bg-zinc-950 border border-zinc-850 border-l-2 border-l-orange-500 rounded-none text-zinc-300 leading-relaxed italic">
+                  <div className="p-4 bg-zinc-950 border border-zinc-800 text-zinc-300 leading-relaxed italic">
                     "{activeTicket.message}"
                   </div>
                 </div>

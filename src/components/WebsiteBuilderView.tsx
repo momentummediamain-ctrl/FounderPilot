@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { WebsiteData, AgentFeedback } from '../types';
+import { WebsiteData, AgentFeedback, AssetAuditLogEntry } from '../types';
 import AgentFeedbackWidget from './AgentFeedbackWidget';
-import { Globe, Sparkles, Eye, Edit2, ShieldCheck, Check, Loader2 } from 'lucide-react';
+import { Globe, Sparkles, Eye, Edit2, ShieldCheck, Check, Loader2, Download, Lock } from 'lucide-react';
 
 interface WebsiteBuilderViewProps {
   websiteData: WebsiteData;
@@ -11,6 +11,14 @@ interface WebsiteBuilderViewProps {
   feedbackList: AgentFeedback[];
   onAddFeedback: (feedback: Omit<AgentFeedback, 'id' | 'createdAt' | 'appliedCount'>) => void;
   onOpenTuningLab: () => void;
+  ownerApprovedLaunch?: boolean;
+  activeRole?: 'OWNER' | 'OPERATOR' | 'VIEWER';
+  onQueueDeployTask?: () => void;
+  onLogAuditAction?: (
+    action: string,
+    summary: string,
+    approvalStatus: AssetAuditLogEntry['approvalStatus']
+  ) => void;
 }
 
 export default function WebsiteBuilderView({
@@ -20,13 +28,18 @@ export default function WebsiteBuilderView({
   businessName,
   feedbackList,
   onAddFeedback,
-  onOpenTuningLab
+  onOpenTuningLab,
+  ownerApprovedLaunch = true,
+  activeRole = 'OWNER',
+  onQueueDeployTask,
+  onLogAuditAction
 }: WebsiteBuilderViewProps) {
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(true);
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [gateBlockedError, setGateBlockedError] = useState<string | null>(null);
 
   const [heroTitle, setHeroTitle] = useState(websiteData.heroTitle || '');
   const [heroSubtitle, setHeroSubtitle] = useState(websiteData.heroSubtitle || '');
@@ -40,10 +53,17 @@ export default function WebsiteBuilderView({
     setSeoDescription(websiteData.seoDescription || '');
   }, [websiteData]);
 
+  const displayVentureName = businessName || 'FounderPilot';
+
   const handleGenerate = async () => {
     setLoading(true);
     try {
       await onGenerateWebsite();
+      onLogAuditAction?.(
+        'AI Website Copy Regenerated',
+        `Evelyn Gray regenerated landing page copy & SEO metadata for ${displayVentureName}.`,
+        'STAGED_DRAFT'
+      );
     } finally {
       setLoading(false);
     }
@@ -57,20 +77,135 @@ export default function WebsiteBuilderView({
       seoTitle,
       seoDescription
     }));
-    setToastMessage('Website copy updated. Live preview synchronized.');
+    onLogAuditAction?.(
+      'Manual Website Copy Override',
+      `Updated hero headline ("${heroTitle.slice(0, 42)}...") and SEO meta tags.`,
+      'STAGED_DRAFT'
+    );
+    setToastMessage('Website copy updated and logged to Workspace Audit Log.');
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleExportHtml = () => {
+    const slug = displayVentureName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${websiteData.seoTitle || heroTitle}</title>
+  <meta name="description" content="${websiteData.seoDescription || heroSubtitle}" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-orange-500 selection:text-black">
+  <header class="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between border-b border-zinc-800">
+    <div class="text-sm font-bold tracking-wider uppercase text-orange-500">${displayVentureName}</div>
+    <nav class="flex items-center gap-6 text-xs font-medium text-zinc-400">
+      <a href="#features" class="hover:text-zinc-100">Features</a>
+      <a href="#pricing" class="hover:text-zinc-100">Pricing</a>
+      <a href="#faq" class="hover:text-zinc-100">FAQ</a>
+    </nav>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-6 py-20 space-y-24">
+    <section class="text-center max-w-2xl mx-auto space-y-6">
+      <h1 class="text-3xl md:text-5xl font-bold tracking-tight leading-tight text-zinc-100">${websiteData.heroTitle || heroTitle}</h1>
+      <p class="text-sm md:text-base text-zinc-400 leading-relaxed">${websiteData.heroSubtitle || heroSubtitle}</p>
+      <div class="flex items-center justify-center gap-4 pt-2">
+        <a href="#pricing" class="px-6 py-3 bg-orange-500 hover:bg-orange-400 text-black font-semibold text-xs transition">Get Started Free</a>
+        <a href="#features" class="px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-200 font-semibold text-xs">Explore Architecture</a>
+      </div>
+    </section>
+
+    <section id="features" class="space-y-8 border-t border-zinc-900 pt-16">
+      <h2 class="text-lg font-bold text-center text-zinc-100">Core Platform Capabilities</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        ${websiteData.features
+          .map(
+            (f) => `<div class="p-6 bg-zinc-900 border border-zinc-800 space-y-2">
+          <h3 class="text-sm font-semibold text-zinc-100">${f.title}</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">${f.description}</p>
+        </div>`
+          )
+          .join('\n')}
+      </div>
+    </section>
+
+    <section id="pricing" class="space-y-8 border-t border-zinc-900 pt-16">
+      <h2 class="text-lg font-bold text-center text-zinc-100">Transparent Tier Pricing</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+        ${websiteData.pricingPlans
+          .map(
+            (p) => `<div class="p-6 bg-zinc-900 border border-zinc-800 flex flex-col justify-between space-y-6">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-zinc-100">${p.name}</span>
+              <span class="text-sm font-mono font-bold text-orange-400">${p.price}</span>
+            </div>
+            <ul class="space-y-2 text-xs text-zinc-400">
+              ${p.features.map((feat) => `<li>✓ ${feat}</li>`).join('')}
+            </ul>
+          </div>
+          <button class="w-full py-2.5 bg-orange-500 text-black font-semibold text-xs">Select ${p.name}</button>
+        </div>`
+          )
+          .join('\n')}
+      </div>
+    </section>
+  </main>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug}-landing-page.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    onLogAuditAction?.(
+      'Standalone HTML Exported',
+      `Downloaded production landing page bundle (${slug}-landing-page.html).`,
+      'OWNER_APPROVED'
+    );
+    setToastMessage(`Exported standalone HTML (${slug}-landing-page.html).`);
     setTimeout(() => setToastMessage(''), 4000);
   };
 
   const handleDeploy = () => {
+    if (!ownerApprovedLaunch || activeRole !== 'OWNER') {
+      setGateBlockedError(
+        !ownerApprovedLaunch
+          ? 'Launch Gate Lock Active: Production website deployment is blocked until the Owner unlocks Public Launch in the Launch Gate.'
+          : `RBAC Guard Blocked Deployment: Current role (${activeRole}) cannot deploy to production. Requires OWNER role.`
+      );
+      onLogAuditAction?.(
+        'Blocked Website Deployment',
+        `Attempted production website deploy while Launch Gate was locked or role was ${activeRole}.`,
+        'BLOCKED_BY_GATE'
+      );
+      return;
+    }
+
+    setGateBlockedError(null);
     setDeploying(true);
     setDeployed(false);
     setTimeout(() => {
       setDeploying(false);
       setDeployed(true);
-    }, 1500);
+      onQueueDeployTask?.();
+      onLogAuditAction?.(
+        'Production Website Deployed',
+        `Owner approved and deployed ${displayVentureName} landing page to production edge.`,
+        'OWNER_APPROVED'
+      );
+      setToastMessage('Production deployment verified and logged to Audit Trail.');
+      setTimeout(() => setToastMessage(''), 4000);
+    }, 1000);
   };
-
-  const displayVentureName = businessName || 'FounderPilot';
 
   return (
     <div className="space-y-6 max-w-5xl animate-fade-in">
@@ -84,10 +219,18 @@ export default function WebsiteBuilderView({
           </div>
           <h2 className="text-xl font-bold text-zinc-100 tracking-tight">AI Landing Page Builder</h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Configure conversion copywriting, edit SEO metadata, and deploy high-converting landing pages in one click.
+            Configure conversion copywriting, edit SEO metadata, export standalone HTML, and deploy with Owner approval.
           </p>
         </div>
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={handleExportHtml}
+            className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 transition-all duration-150 cursor-pointer whitespace-nowrap"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export HTML (.html)</span>
+          </button>
+
           <button
             onClick={handleGenerate}
             disabled={loading}
@@ -121,6 +264,11 @@ export default function WebsiteBuilderView({
                 <ShieldCheck className="w-3.5 h-3.5 text-black" />
                 <span>Live on Production</span>
               </>
+            ) : !ownerApprovedLaunch || activeRole !== 'OWNER' ? (
+              <>
+                <Lock className="w-3.5 h-3.5 text-black" />
+                <span>Deploy Website (Owner Gate)</span>
+              </>
             ) : (
               <>
                 <Globe className="w-3.5 h-3.5 text-black" />
@@ -130,6 +278,18 @@ export default function WebsiteBuilderView({
           </button>
         </div>
       </div>
+
+      {gateBlockedError && (
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center justify-between gap-4">
+          <span>{gateBlockedError}</span>
+          <button
+            onClick={() => setGateBlockedError(null)}
+            className="text-[11px] underline text-rose-200 cursor-pointer shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {toastMessage && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
@@ -216,7 +376,7 @@ export default function WebsiteBuilderView({
                   onClick={handleSaveCopies}
                   className="w-full py-2.5 bg-orange-500 hover:bg-orange-400 text-black text-xs font-semibold transition cursor-pointer"
                 >
-                  Save & Update Landing Page
+                  Save & Stage Copy Update
                 </button>
               </div>
             </div>

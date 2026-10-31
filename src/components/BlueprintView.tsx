@@ -1,31 +1,42 @@
 import React, { useState } from 'react';
-import { BusinessProfile, AgentFeedback } from '../types';
+import { BusinessProfile, AgentFeedback, AssetAuditLogEntry } from '../types';
 import AgentFeedbackWidget from './AgentFeedbackWidget';
-import { Map, Sparkles, Check, Edit3, Loader2, Compass } from 'lucide-react';
+import { Map, Sparkles, Check, Edit3, Loader2, Compass, Download, Layers } from 'lucide-react';
 
 interface BlueprintViewProps {
   profile: BusinessProfile;
   setProfile: React.Dispatch<React.SetStateAction<BusinessProfile>>;
   onGenerateBlueprint: (idea: string) => Promise<void>;
+  onCascadeVenture?: (idea: string) => Promise<void>;
+  onExportDossier?: () => void;
   onOpenMarketResearch: () => void;
   feedbackList: AgentFeedback[];
   onAddFeedback: (feedback: Omit<AgentFeedback, 'id' | 'createdAt' | 'appliedCount'>) => void;
   onOpenTuningLab: () => void;
+  onLogAuditAction?: (
+    action: string,
+    summary: string,
+    approvalStatus: AssetAuditLogEntry['approvalStatus']
+  ) => void;
 }
 
 export default function BlueprintView({
   profile,
   setProfile,
   onGenerateBlueprint,
+  onCascadeVenture,
+  onExportDossier,
   onOpenMarketResearch,
   feedbackList,
   onAddFeedback,
-  onOpenTuningLab
+  onOpenTuningLab,
+  onLogAuditAction
 }: BlueprintViewProps) {
   const [ideaInput, setIdeaInput] = useState(
     profile.idea || 'Autonomous AI workflow & billing copilot for solo SaaS founders and boutique digital agencies'
   );
   const [loading, setLoading] = useState(false);
+  const [cascading, setCascading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   const [name, setName] = useState(profile.name || '');
@@ -44,6 +55,16 @@ export default function BlueprintView({
     }
   };
 
+  const handleCascade = async () => {
+    if (!ideaInput.trim() || !onCascadeVenture) return;
+    setCascading(true);
+    try {
+      await onCascadeVenture(ideaInput);
+    } finally {
+      setCascading(false);
+    }
+  };
+
   const handleSaveOverrides = () => {
     setProfile((prev) => ({
       ...prev,
@@ -53,6 +74,11 @@ export default function BlueprintView({
       avatar,
       problem
     }));
+    onLogAuditAction?.(
+      'Manual Business Blueprint Override',
+      `Updated Venture Name ("${name}") and core offer positioning.`,
+      'STAGED_DRAFT'
+    );
     setIsEditing(false);
   };
 
@@ -84,14 +110,26 @@ export default function BlueprintView({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenMarketResearch}
-          className="flex items-center gap-2 px-3.5 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
-        >
-          <Compass className="w-3.5 h-3.5 text-orange-500" />
-          <span>View CEO Market Research →</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onExportDossier && (
+            <button
+              type="button"
+              onClick={onExportDossier}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Export Dossier (.md)</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onOpenMarketResearch}
+            className="flex items-center gap-2 px-3.5 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <Compass className="w-3.5 h-3.5 text-orange-500" />
+            <span>View CEO Market Research →</span>
+          </button>
+        </div>
       </div>
 
       {/* Idea Inputs / Generator Panel */}
@@ -109,21 +147,40 @@ export default function BlueprintView({
           />
           <button
             onClick={handleGenerate}
-            disabled={loading || !ideaInput.trim()}
-            className="flex items-center justify-center space-x-2 px-5 py-2.5 text-xs font-semibold bg-orange-500 hover:bg-orange-400 text-black transition-all duration-150 disabled:opacity-40 shrink-0 cursor-pointer whitespace-nowrap"
+            disabled={loading || cascading || !ideaInput.trim()}
+            className="flex items-center justify-center space-x-2 px-4 py-2.5 text-xs font-semibold bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-zinc-100 transition-all duration-150 disabled:opacity-40 shrink-0 cursor-pointer whitespace-nowrap"
           >
             {loading ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
                 <span>Architecting...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-black" />
+                <Sparkles className="w-3.5 h-3.5 text-orange-500" />
                 <span>Auto-Generate Blueprint</span>
               </>
             )}
           </button>
+          {onCascadeVenture && (
+            <button
+              onClick={handleCascade}
+              disabled={loading || cascading || !ideaInput.trim()}
+              className="flex items-center justify-center space-x-2 px-5 py-2.5 text-xs font-semibold bg-orange-500 hover:bg-orange-400 text-black transition-all duration-150 disabled:opacity-40 shrink-0 cursor-pointer whitespace-nowrap"
+            >
+              {cascading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                  <span>Cascading All Modules...</span>
+                </>
+              ) : (
+                <>
+                  <Layers className="w-3.5 h-3.5 text-black" />
+                  <span>1-Click Full Venture Cascade</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

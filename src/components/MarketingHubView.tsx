@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { MarketingCampaign, AgentFeedback } from '../types';
+import { MarketingCampaign, AgentFeedback, AssetAuditLogEntry } from '../types';
 import AgentFeedbackWidget from './AgentFeedbackWidget';
 import {
-  Megaphone,
   Sparkles,
   Video,
   Instagram,
@@ -11,7 +10,8 @@ import {
   Layout,
   Calendar,
   Check,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
 
 interface MarketingHubViewProps {
@@ -22,6 +22,13 @@ interface MarketingHubViewProps {
   feedbackList: AgentFeedback[];
   onAddFeedback: (feedback: Omit<AgentFeedback, 'id' | 'createdAt' | 'appliedCount'>) => void;
   onOpenTuningLab: () => void;
+  ownerApprovedLaunch?: boolean;
+  activeRole?: 'OWNER' | 'OPERATOR' | 'VIEWER';
+  onLogAuditAction?: (
+    action: string,
+    summary: string,
+    approvalStatus: AssetAuditLogEntry['approvalStatus']
+  ) => void;
 }
 
 export default function MarketingHubView({
@@ -31,27 +38,58 @@ export default function MarketingHubView({
   businessName,
   feedbackList,
   onAddFeedback,
-  onOpenTuningLab
+  onOpenTuningLab,
+  ownerApprovedLaunch = true,
+  activeRole = 'OWNER',
+  onLogAuditAction
 }: MarketingHubViewProps) {
   const [loading, setLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'tiktok' | 'insta' | 'facebook' | 'email' | 'ads' | 'calendar'>('tiktok');
+  const [gateBlockedError, setGateBlockedError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     setLoading(true);
     try {
       await onGenerateMarketing();
+      onLogAuditAction?.(
+        'AI Marketing Campaign Regenerated',
+        `Rohan Joshi regenerated multi-channel scripts and email sequences for ${businessName || 'FounderPilot'}.`,
+        'STAGED_DRAFT'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdateStatus = (id: string, newStatus: 'draft' | 'scheduled' | 'published') => {
+    const targetEvent = campaign.calendar.find((e) => e.id === id);
+    if (newStatus === 'published' && (!ownerApprovedLaunch || activeRole !== 'OWNER')) {
+      setGateBlockedError(
+        !ownerApprovedLaunch
+          ? 'Launch Gate Lock Active: External social/email publishing is blocked until the Owner unlocks Public Launch in the Launch Gate.'
+          : `RBAC Guard Blocked Publishing: Current role (${activeRole}) cannot publish external campaigns. Requires OWNER role.`
+      );
+      onLogAuditAction?.(
+        'Blocked Campaign Publish',
+        `Attempted to publish "${targetEvent?.content || id}" while Launch Gate was locked or role was ${activeRole}.`,
+        'BLOCKED_BY_GATE'
+      );
+      return;
+    }
+
+    setGateBlockedError(null);
     setCampaign((prev) => ({
       ...prev,
       calendar: prev.calendar.map((event) =>
         event.id === id ? { ...event, status: newStatus } : event
       )
     }));
+
+    onLogAuditAction?.(
+      newStatus === 'published' ? 'Published Marketing Post' : 'Scheduled Marketing Post',
+      `${targetEvent?.platform || 'Social'} item "${targetEvent?.content || id}" marked as ${newStatus}.`,
+      newStatus === 'published' ? 'OWNER_APPROVED' : 'STAGED_DRAFT'
+    );
   };
 
   const activeMarketingRules = feedbackList.filter(
@@ -95,6 +133,18 @@ export default function MarketingHubView({
           )}
         </button>
       </div>
+
+      {gateBlockedError && (
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center justify-between gap-4">
+          <span>{gateBlockedError}</span>
+          <button
+            onClick={() => setGateBlockedError(null)}
+            className="text-[11px] underline text-rose-200 cursor-pointer shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Sub Navigation Bar */}
       <div className="flex space-x-1 bg-zinc-950 p-1 border border-zinc-800 overflow-x-auto scrollbar-none">
@@ -268,9 +318,16 @@ export default function MarketingHubView({
         {/* 6. Content Calendar Scheduler */}
         {activeSubTab === 'calendar' && (
           <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-zinc-200 border-b border-zinc-800 pb-2">
-              Social Launch Content Scheduler
-            </h3>
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <h3 className="text-xs font-semibold text-zinc-200">
+                Social Launch Content Scheduler
+              </h3>
+              <span className="text-[11px] font-mono text-zinc-400">
+                {ownerApprovedLaunch && activeRole === 'OWNER'
+                  ? '✓ Owner Launch Gate Unlocked'
+                  : '🔒 Publishing Locked by Launch Gate'}
+              </span>
+            </div>
             <div className="space-y-3">
               {campaign.calendar.map((event) => (
                 <div key={event.id} className="p-3.5 bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs gap-4">
@@ -302,9 +359,12 @@ export default function MarketingHubView({
                     {event.status !== 'published' && (
                       <button
                         onClick={() => handleUpdateStatus(event.id, 'published')}
-                        className="text-xs font-semibold px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-black transition cursor-pointer"
+                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-black transition cursor-pointer"
                       >
-                        Publish Now
+                        {(!ownerApprovedLaunch || activeRole !== 'OWNER') && (
+                          <Lock className="w-3 h-3 text-black" />
+                        )}
+                        <span>Publish Now</span>
                       </button>
                     )}
                     {event.status === 'published' && (

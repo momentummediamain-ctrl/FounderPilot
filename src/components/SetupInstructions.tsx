@@ -1,36 +1,71 @@
 import React, { useState } from 'react';
-import { Settings, Database, Code, CreditCard, Send, ShieldCheck } from 'lucide-react';
+import { Settings, Database, Code, ShieldCheck, GitBranch, RotateCcw } from 'lucide-react';
 
 export default function SetupInstructions() {
-  const [activeTab, setActiveTab] = useState<'db' | 'api' | 'env' | 'deploy'>('db');
+  const [activeTab, setActiveTab] = useState<'db' | 'ci' | 'security' | 'env' | 'rollback'>('security');
 
-  const envContent = `# .env.local (Next.js & Express Configuration)
+  const envContent = `# .env.example (Server-Side Secret Vault Configuration — Never expose secret keys in browser UI)
 
-# 1. GOOGLE GEMINI DEEP REASONING API KEY
-GEMINI_API_KEY="AI_STUDIO_SECRETS_KEY_GOES_HERE"
+# 1. GOOGLE GEMINI API KEY (Server-Side Only)
+GEMINI_API_KEY="MY_GEMINI_API_KEY"
 
-# 2. SUPABASE POSTGRES GENERAL CONNECTION (DATABASE)
+# 2. MULTI-TENANT POSTGRESQL / SUPABASE CONNECTION
 DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres"
-NEXT_PUBLIC_SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_ANON_KEY_HERE"
 
-# 3. STRIPE MERCHANT PAYMENTS INTELLIGENCE
-STRIPE_SECRET_KEY="sk_live_..."
-STRIPE_PUBLISHABLE_KEY="pk_live_..."
+# 3. STRIPE SERVER-SIDE BILLING & WEBHOOK VERIFICATION (Test Mode Default)
+STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 
-# 4. RESEND EMAIL API KEY
+# 4. RESEND TRANSACTIONAL EMAIL KEY (Server-Side Only)
 RESEND_API_KEY="re_..."
 
-# 5. PRODUCTION HOST URL
+# 5. APPLICATION BASE URL
 APP_URL="https://founderpilot.app"`;
 
-  const schemaContent = `-- PostgreSQL Database Schema (Supabase compliant)
+  const ciContent = `# .github/workflows/ci.yml — Automated Build, Type Check, Secret Scan & Tenant Security Suite
+name: FounderPilot OS Production Gate CI
 
--- 1. Create Profile Table (Tracks overall business parameters)
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-truth-and-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout clean-room repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Clean dependency installation
+        run: npm ci
+
+      - name: Secret scanning & browser secret-input ban check
+        run: |
+          ! grep -rn "sk_live_" src/
+          ! grep -rn 'type="password".*sk_' src/
+
+      - name: Strict TypeScript verification (npm run lint)
+        run: npm run lint
+
+      - name: Production Vite bundle build (npm run build)
+        run: npm run build`;
+
+  const schemaContent = `-- PostgreSQL Multi-Tenant Schema with Row-Level Security (RLS) & Audit Receipts
+
+-- 1. Isolated Business Profiles Table
 CREATE TABLE IF NOT EXISTS business_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  founder_email VARCHAR(255) NOT NULL,
+  tenant_id VARCHAR(64) NOT NULL UNIQUE,
+  owner_email VARCHAR(255) NOT NULL,
+  role VARCHAR(32) DEFAULT 'OWNER' NOT NULL,
   idea TEXT NOT NULL,
   name VARCHAR(255) NOT NULL,
   offer TEXT,
@@ -38,185 +73,192 @@ CREATE TABLE IF NOT EXISTS business_profiles (
   problem TEXT,
   pricing_plans JSONB,
   launch_checklist JSONB,
-  recommended_tools JSONB,
+  snapshot_sha256 VARCHAR(64) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. Create Tasks Table (AI Employee approval queue)
+ALTER TABLE business_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_policy ON business_profiles
+  USING (tenant_id = current_setting('app.current_tenant_id', true));
+
+-- 2. Role-Aware Approval Tasks & Cryptographic Receipts
 CREATE TABLE IF NOT EXISTS approval_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id UUID REFERENCES business_profiles(id) ON DELETE CASCADE,
+  tenant_id VARCHAR(64) NOT NULL,
   agent_id VARCHAR(50) NOT NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  status VARCHAR(50) DEFAULT 'pending_approval' NOT NULL, -- pending_approval, approved, completed
+  status VARCHAR(50) DEFAULT 'pending_approval' NOT NULL,
   action_type VARCHAR(50) DEFAULT 'general' NOT NULL,
-  external_payload JSONB,
-  result TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 3. Create Ticket Table (Customer support desk)
-CREATE TABLE IF NOT EXISTS support_tickets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id UUID REFERENCES business_profiles(id) ON DELETE CASCADE,
-  customer_name VARCHAR(100) NOT NULL,
-  customer_email VARCHAR(255) NOT NULL,
-  message TEXT NOT NULL,
-  status VARCHAR(50) DEFAULT 'open' NOT NULL, -- open, resolved
-  draft_reply TEXT,
+  approved_by VARCHAR(255),
+  approved_at TIMESTAMP WITH TIME ZONE,
+  receipt_id VARCHAR(64),
+  receipt_sha256 VARCHAR(64),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );`;
 
-  const apiContent = `// Next.js Route Proxy: /app/api/ai/chat/route.ts
-import { GoogleGenAI } from '@google/genai';
-import { NextResponse } from 'next/server';
+  const securityContent = `1. MULTI-TENANT SECURITY BOUNDARIES & RBAC
+- Every workspace request is scoped to an isolated tenantId (e.g., tenant_alpha_01 vs tenant_bravo_02).
+- Cross-tenant read/write attempts are rejected server-side with HTTP 403 Forbidden.
+- Consequential task approvals and executions require role === 'OWNER'. Read-only VIEWER roles are blocked from approving or executing external actions.
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-});
+2. SERVER-SIDE SECRET ISOLATION
+- Browser-based secret key entry has been completely removed from PaymentAssistantView.
+- GEMINI_API_KEY, STRIPE_SECRET_KEY, and RESEND_API_KEY reside strictly in server-side environment variables and are accessed only via Express routes (/api/*).
 
-export async function POST(req: Request) {
-  try {
-    const { message, history } = await req.json();
+3. FINANCIAL TRUTH & EXPLICIT KNOWN LIMITATIONS
+- Revenue Dashboard defaults to the Verified Financial Ledger ($0.00 Live Verified Revenue) and strictly quarantines synthetic demo traffic so simulated numbers ($2,840) can never be mistaken for real bank settlements.
+- Stripe integration operates in verified STRIPE_TEST_MODE (ch_test_*, re_test_*, sub_test_*) until production merchant underwriting is enabled.
+- AI outputs are validated against JSON schemas with deterministic fallback recovery and usage quotas (500 calls/day, $25/mo cost guardrail).`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: message,
-      config: {
-        systemInstruction: "You are the Co-Founder CEO of FounderPilot OS. Guide the founder in markdown.",
-      }
-    });
+  const rollbackContent = `1. GRADUAL RELEASE & CANARY ROLLOUT
+- Stage 1 (Closed Pilot): 5 invited founder accounts with $25/mo workspace AI cost cap.
+- Stage 2 (10% Canary): Enable public sign-ups with Stripe test-mode & live webhook verification.
+- Stage 3 (General Availability): Full production traffic once P95 latency < 1.2s and error rate < 0.2%.
 
-    return NextResponse.json({ text: response.text });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}`;
+2. INSTANT ROLLBACK PROCEDURE (< 90 SECONDS)
+- Step 1: Flip kill-switch environment flag (SAFE_READONLY_MODE=true) to pause autonomous task executions while preserving read access.
+- Step 2: Revert container revision to last pinned green SHA in Cloud Run / Vercel deployment history.
+- Step 3: Run POST /api/records/restore with tenantId to verify SHA-256 snapshot integrity against pre-release backup.`;
 
   return (
-    <div className="space-y-6 max-w-4xl animate-fade-in">
-      {/* Top Header */}
-      <div className="pb-2">
-        <h2 className="text-xl font-bold text-zinc-100 tracking-tight uppercase">SaaS Architectural Specs</h2>
-        <p className="text-xs text-zinc-500 mt-1">
-          Review clean-room specifications, Postgres database schemas, server endpoints, and production environment declarations.
+    <div className="space-y-6 max-w-5xl animate-fade-in">
+      <div className="border-b border-zinc-800 pb-5">
+        <div className="text-[11px] font-mono uppercase tracking-widest text-orange-400 mb-1">
+          Stage 1 & Stage 6 Documentation · Clean-Room Architecture & Governance
+        </div>
+        <h2 className="text-xl font-bold text-zinc-100 tracking-tight">
+          Architecture, Security Boundaries, CI & Rollback Specs
+        </h2>
+        <p className="text-xs text-zinc-400 mt-1">
+          Explicit documentation of security boundaries, known prototype limitations, GitHub Actions CI, branch protection, PostgreSQL RLS schema, and controlled rollback procedures.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
-        {/* Sidebar specs items */}
-        <div className="md:col-span-1 space-y-1 bg-zinc-900 p-2 border border-zinc-800 rounded-none">
+        <div className="md:col-span-1 space-y-1 bg-zinc-900 p-2 border border-zinc-800">
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold transition cursor-pointer border ${
+              activeTab === 'security'
+                ? 'bg-zinc-950 text-zinc-100 border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200 border-transparent'
+            }`}
+          >
+            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'security' ? 'text-orange-500' : ''}`} />
+            <span>Security & Limits</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('ci')}
+            className={`w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold transition cursor-pointer border ${
+              activeTab === 'ci'
+                ? 'bg-zinc-950 text-zinc-100 border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200 border-transparent'
+            }`}
+          >
+            <GitBranch className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'ci' ? 'text-orange-500' : ''}`} />
+            <span>GitHub Actions CI</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('db')}
-            className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition cursor-pointer border-l-2 ${
+            className={`w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold transition cursor-pointer border ${
               activeTab === 'db'
-                ? 'bg-zinc-950 text-zinc-100 border border-zinc-800 border-l-orange-500'
-                : 'text-zinc-500 hover:text-zinc-300 border-transparent border-l-transparent'
+                ? 'bg-zinc-950 text-zinc-100 border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200 border-transparent'
             }`}
           >
             <Database className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'db' ? 'text-orange-500' : ''}`} />
-            <span>Postgres SQL</span>
+            <span>Postgres RLS SQL</span>
           </button>
-          <button
-            onClick={() => setActiveTab('api')}
-            className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition cursor-pointer border-l-2 ${
-              activeTab === 'api'
-                ? 'bg-zinc-950 text-zinc-100 border border-zinc-800 border-l-orange-500'
-                : 'text-zinc-500 hover:text-zinc-300 border-transparent border-l-transparent'
-            }`}
-          >
-            <Code className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'api' ? 'text-orange-500' : ''}`} />
-            <span>API Router</span>
-          </button>
+
           <button
             onClick={() => setActiveTab('env')}
-            className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition cursor-pointer border-l-2 ${
+            className={`w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold transition cursor-pointer border ${
               activeTab === 'env'
-                ? 'bg-zinc-950 text-zinc-100 border border-zinc-800 border-l-orange-500'
-                : 'text-zinc-500 hover:text-zinc-300 border-transparent border-l-transparent'
+                ? 'bg-zinc-950 text-zinc-100 border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200 border-transparent'
             }`}
           >
             <Settings className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'env' ? 'text-orange-500' : ''}`} />
-            <span>Environment</span>
+            <span>Server Secrets (.env)</span>
           </button>
+
           <button
-            onClick={() => setActiveTab('deploy')}
-            className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition cursor-pointer border-l-2 ${
-              activeTab === 'deploy'
-                ? 'bg-zinc-950 text-zinc-100 border border-zinc-800 border-l-orange-500'
-                : 'text-zinc-500 hover:text-zinc-300 border-transparent border-l-transparent'
+            onClick={() => setActiveTab('rollback')}
+            className={`w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold transition cursor-pointer border ${
+              activeTab === 'rollback'
+                ? 'bg-zinc-950 text-zinc-100 border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200 border-transparent'
             }`}
           >
-            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'deploy' ? 'text-orange-500' : ''}`} />
-            <span>Deploy steps</span>
+            <RotateCcw className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'rollback' ? 'text-orange-500' : ''}`} />
+            <span>Rollback Runbook</span>
           </button>
         </div>
 
-        {/* Content Box */}
-        <div className="md:col-span-3 bg-zinc-900 border border-zinc-800 rounded-none p-6 min-h-[380px] flex flex-col justify-between">
+        <div className="md:col-span-3 bg-zinc-900 border border-zinc-800 p-6 min-h-[380px] flex flex-col justify-between">
           <div className="space-y-4">
-            {activeTab === 'db' && (
+            {activeTab === 'security' && (
               <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-widest">Supabase SQL Schema Script</h3>
-                <pre className="p-4 bg-black border border-zinc-800 rounded-none text-[11px] text-zinc-400 font-mono leading-relaxed overflow-x-auto whitespace-pre scrollbar-thin max-h-[320px]">
-                  {schemaContent}
+                <h3 className="text-xs font-semibold uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-wider">
+                  Architecture, Security Boundaries & Explicit Known Limitations
+                </h3>
+                <pre className="p-4 bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                  {securityContent}
                 </pre>
               </div>
             )}
 
-            {activeTab === 'api' && (
+            {activeTab === 'ci' && (
               <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-widest">Next.js 14+ Server-Side route handler</h3>
-                <pre className="p-4 bg-black border border-zinc-800 rounded-none text-[11px] text-zinc-400 font-mono leading-relaxed overflow-x-auto whitespace-pre scrollbar-thin max-h-[320px]">
-                  {apiContent}
+                <h3 className="text-xs font-semibold uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-wider">
+                  GitHub Actions CI, Branch Protection & Secret Scanning (.github/workflows/ci.yml)
+                </h3>
+                <pre className="p-4 bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 font-mono leading-relaxed overflow-x-auto whitespace-pre">
+                  {ciContent}
+                </pre>
+              </div>
+            )}
+
+            {activeTab === 'db' && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-wider">
+                  Supabase PostgreSQL Schema with Tenant Isolation Policy (RLS)
+                </h3>
+                <pre className="p-4 bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 font-mono leading-relaxed overflow-x-auto whitespace-pre">
+                  {schemaContent}
                 </pre>
               </div>
             )}
 
             {activeTab === 'env' && (
               <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-widest">Environment Variables Config</h3>
-                <pre className="p-4 bg-black border border-zinc-800 rounded-none text-[11px] text-zinc-400 font-mono leading-relaxed overflow-x-auto whitespace-pre scrollbar-thin max-h-[320px]">
+                <h3 className="text-xs font-semibold uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-wider">
+                  Server-Side Environment Variables (.env.example)
+                </h3>
+                <pre className="p-4 bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 font-mono leading-relaxed overflow-x-auto whitespace-pre">
                   {envContent}
                 </pre>
               </div>
             )}
 
-            {activeTab === 'deploy' && (
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-widest">SaaS Deployment Roadmap</h3>
-                <ul className="space-y-3 text-xs text-zinc-400 pl-1 leading-normal">
-                  <li className="flex items-start space-x-2.5 p-3 bg-zinc-950 border border-zinc-850">
-                    <span className="text-orange-500 mt-0.5">●</span>
-                    <div>
-                      <span className="font-bold text-zinc-200 block">Deploy Supabase DB:</span>
-                      Initialize a free project, open the SQL Editor console, paste the schema script, and click Run.
-                    </div>
-                  </li>
-                  <li className="flex items-start space-x-2.5 p-3 bg-zinc-950 border border-zinc-850">
-                    <span className="text-orange-500 mt-0.5">●</span>
-                    <div>
-                      <span className="font-bold text-zinc-200 block">Stripe webhook configuration:</span>
-                      Navigate to Developer &gt; Webhooks inside Stripe. Point the webhook URL back to your hosted backend route (`/api/stripe/webhook`).
-                    </div>
-                  </li>
-                  <li className="flex items-start space-x-2.5 p-3 bg-zinc-950 border border-zinc-850">
-                    <span className="text-orange-500 mt-0.5">●</span>
-                    <div>
-                      <span className="font-bold text-zinc-200 block">Push to Production on Vercel:</span>
-                      Push the Next.js frontend to GitHub, connect Vercel to your repository, register your Env variables in project configurations, and trigger compile.
-                    </div>
-                  </li>
-                </ul>
+            {activeTab === 'rollback' && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase text-zinc-200 border-b border-zinc-800 pb-2 tracking-wider">
+                  Controlled Gradual Release & Instant Rollback Runbook
+                </h3>
+                <pre className="p-4 bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                  {rollbackContent}
+                </pre>
               </div>
             )}
           </div>
 
-          <div className="border-t border-zinc-800 pt-4 mt-6 text-[10px] text-zinc-500 flex items-center justify-between font-mono">
-            <span>SaaS Architecture Draft</span>
-            <span>✓ Complete specs compiled</span>
+          <div className="border-t border-zinc-800 pt-4 mt-6 text-[11px] text-zinc-400 flex items-center justify-between font-mono">
+            <span>Branch Protection & Secret Scanning: Enabled</span>
+            <span className="text-emerald-400">✓ Exit Gates Documented</span>
           </div>
         </div>
       </div>

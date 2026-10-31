@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MarketResearchReport, AgentFeedback } from '../types';
+import { MarketResearchReport, MarketIntelFeed, AgentFeedback } from '../types';
 import AgentFeedbackWidget from './AgentFeedbackWidget';
 import {
   Compass,
@@ -10,15 +10,24 @@ import {
   CheckCircle2,
   ArrowRight,
   Loader2,
-  FileText
+  FileText,
+  Globe,
+  ExternalLink,
+  RefreshCw,
+  Download,
+  Layers
 } from 'lucide-react';
 
 interface MarketResearchViewProps {
   report: MarketResearchReport;
+  marketIntel: MarketIntelFeed;
   businessIdea: string;
   businessName: string;
   onGenerateResearch: (idea: string) => Promise<void>;
+  onRefreshMarketIntel: (idea: string) => Promise<void>;
   onSyncToBlueprint: (idea: string) => Promise<void>;
+  onCascadeVenture?: (idea: string) => Promise<void>;
+  onExportDossier?: () => void;
   feedbackList: AgentFeedback[];
   onAddFeedback: (feedback: Omit<AgentFeedback, 'id' | 'createdAt' | 'appliedCount'>) => void;
   onOpenTuningLab: () => void;
@@ -33,27 +42,49 @@ const SAMPLE_IDEAS = [
 
 export default function MarketResearchView({
   report,
+  marketIntel,
   businessIdea,
   businessName,
   onGenerateResearch,
+  onRefreshMarketIntel,
   onSyncToBlueprint,
+  onCascadeVenture,
+  onExportDossier,
   feedbackList,
   onAddFeedback,
   onOpenTuningLab
 }: MarketResearchViewProps) {
   const [ideaInput, setIdeaInput] = useState<string>(businessIdea || report.idea || SAMPLE_IDEAS[0]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [intelLoading, setIntelLoading] = useState<boolean>(false);
   const [syncingBlueprint, setSyncingBlueprint] = useState<boolean>(false);
+  const [cascading, setCascading] = useState<boolean>(false);
 
   const handleRunResearch = async (overrideIdea?: string) => {
     const targetIdea = (overrideIdea ?? ideaInput).trim();
     if (!targetIdea) return;
     if (overrideIdea) setIdeaInput(overrideIdea);
     setLoading(true);
+    setIntelLoading(true);
     try {
-      await onGenerateResearch(targetIdea);
+      await Promise.all([
+        onGenerateResearch(targetIdea),
+        onRefreshMarketIntel(targetIdea)
+      ]);
     } finally {
       setLoading(false);
+      setIntelLoading(false);
+    }
+  };
+
+  const handleRefreshIntelOnly = async () => {
+    const targetIdea = ideaInput.trim() || report.idea;
+    if (!targetIdea) return;
+    setIntelLoading(true);
+    try {
+      await onRefreshMarketIntel(targetIdea);
+    } finally {
+      setIntelLoading(false);
     }
   };
 
@@ -68,44 +99,91 @@ export default function MarketResearchView({
     }
   };
 
+  const handleCascadeAll = async () => {
+    if (!onCascadeVenture) return;
+    const targetIdea = ideaInput.trim() || report.idea;
+    if (!targetIdea) return;
+    setCascading(true);
+    try {
+      await onCascadeVenture(targetIdea);
+    } finally {
+      setCascading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl animate-fade-in">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2">
         <div>
           <div className="flex items-center gap-2 text-xs text-zinc-400 mb-1">
             <span>CEO Agent Sarah Chen</span>
             <span>·</span>
-            <span>Strategic Intelligence Division</span>
+            <span className="text-emerald-400 font-mono">Google Search Cited</span>
             <span>·</span>
             <span className="font-mono tabular-nums">Updated {report.generatedAt}</span>
           </div>
           <h2 className="text-xl font-bold text-zinc-100 tracking-tight">
-            CEO Market Research & Competitive Intelligence
+            CEO Market Research & Cited Competitive Intelligence
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Quantify TAM/SAM/SOM market size, benchmark key competitors&#39; strengths and weaknesses, and isolate high-margin market gaps.
+            Quantify TAM/SAM/SOM market size with verifiable citations, track live Google Search grounded news trends, and cascade strategy across all modules.
           </p>
         </div>
 
-        <button
-          onClick={handleSyncBlueprint}
-          disabled={syncingBlueprint}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-100 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
-        >
-          {syncingBlueprint ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
-              <span>Compiling Blueprint...</span>
-            </>
-          ) : (
-            <>
-              <FileText className="w-3.5 h-3.5 text-orange-500" />
-              <span>Generate Blueprint from Findings</span>
-              <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
-            </>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onExportDossier && (
+            <button
+              type="button"
+              onClick={onExportDossier}
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5 text-orange-500" />
+              <span>Export Dossier (.md)</span>
+            </button>
           )}
-        </button>
+
+          {onCascadeVenture && (
+            <button
+              type="button"
+              onClick={handleCascadeAll}
+              disabled={cascading}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-400 text-black text-xs font-semibold transition cursor-pointer whitespace-nowrap disabled:opacity-50"
+            >
+              {cascading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                  <span>Cascading Across All Modules...</span>
+                </>
+              ) : (
+                <>
+                  <Layers className="w-3.5 h-3.5 text-black" />
+                  <span>1-Click Full Venture Cascade</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSyncBlueprint}
+            disabled={syncingBlueprint}
+            className="flex items-center gap-2 px-3.5 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-100 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
+          >
+            {syncingBlueprint ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
+                <span>Compiling Blueprint...</span>
+              </>
+            ) : (
+              <>
+                <FileText className="w-3.5 h-3.5 text-orange-500" />
+                <span>Sync Blueprint</span>
+                <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Business Idea Research Input Panel */}
@@ -165,6 +243,105 @@ export default function MarketResearchView({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Market Intel Widget (Google Search Grounding) */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-orange-500 shrink-0" />
+              <h3 className="text-sm font-semibold text-zinc-100">
+                Market Intel · Top 3 Latest News Headlines & Industry Trends
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span>Powered by Google Search Grounding</span>
+              <span>·</span>
+              <span className="font-mono tabular-nums">Synced {marketIntel.updatedAt}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRefreshIntelOnly}
+            disabled={intelLoading || !ideaInput.trim()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-xs font-semibold text-zinc-200 transition disabled:opacity-40 cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-orange-500 ${intelLoading ? 'animate-spin' : ''}`} />
+            <span>{intelLoading ? 'Searching Live Web...' : 'Refresh Live Intel'}</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {marketIntel.items.slice(0, 3).map((item, idx) => (
+            <div
+              key={idx}
+              className="bg-zinc-950 border border-zinc-800 p-5 flex flex-col justify-between space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 text-xs text-zinc-500 font-mono tabular-nums">
+                  <span className="text-orange-400 font-semibold">Signal 0{idx + 1}</span>
+                  <span className="truncate">{item.publishedContext}</span>
+                </div>
+
+                <h4 className="text-sm font-semibold text-zinc-100 leading-snug">
+                  {item.headline}
+                </h4>
+
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {item.summary}
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-3 border-t border-zinc-800">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-emerald-400 block">
+                    CEO Strategic Takeaway:
+                  </span>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    {item.strategicImplication}
+                  </p>
+                </div>
+
+                {item.sourceUrl && (
+                  <a
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 transition truncate max-w-full"
+                  >
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{item.sourceTitle || item.sourceUrl}</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Grounding Citations Strip */}
+        {marketIntel.sources && marketIntel.sources.length > 0 && (
+          <div className="bg-zinc-950 border border-zinc-800 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs font-medium text-zinc-400 shrink-0">
+              Google Search Grounding Citations:
+            </span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+              {marketIntel.sources.slice(0, 4).map((src, sIdx) => (
+                <a
+                  key={sIdx}
+                  href={src.uri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-zinc-300 hover:text-orange-400 transition truncate max-w-xs"
+                >
+                  <ExternalLink className="w-3 h-3 text-orange-500 shrink-0" />
+                  <span className="truncate">{src.title}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Section 1: Concise Executive Report Summary */}
@@ -335,6 +512,42 @@ export default function MarketResearchView({
                 <span className="font-mono tabular-nums text-zinc-300">{rec.expectedImpact}</span>
               </div>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 6: Verified Market Research Citations (Google Search Grounded) */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6 space-y-3">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+            <h3 className="text-sm font-semibold text-zinc-100">
+              06. Verified Market Research Citations & Source Attribution
+            </h3>
+          </div>
+          <span className="text-xs font-mono text-emerald-400">
+            {report.groundingVerified !== false ? 'GROUNDING VERIFIED' : 'REFERENCE SOURCES'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          {(report.citations && report.citations.length > 0
+            ? report.citations
+            : marketIntel.sources
+          ).map((citation, idx) => (
+            <a
+              key={idx}
+              href={citation.uri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-3 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 flex items-center justify-between gap-2 text-zinc-300 hover:text-orange-400 transition"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[11px] font-mono text-orange-400 shrink-0">[{idx + 1}]</span>
+                <span className="truncate">{citation.title}</span>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+            </a>
           ))}
         </div>
       </div>
